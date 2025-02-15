@@ -14,14 +14,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  lockedUntil  DateTime? // Fecha hasta la que el usuario está bloqueado
-  sessions Session[]
-  roles    UserRole[]
+  id          String     @id @default(uuid())
+  email       String     @unique
+  password    String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  lockedUntil DateTime? // Fecha hasta la que el usuario está bloqueado
+  sessions    Session[]
+  roles       UserRole[]
 
   refreshTokens RefreshToken[]
   activityLogs  ActivityLog[]
@@ -37,9 +37,10 @@ model Session {
 }
 
 model Role {
-  id    String     @id @default(uuid())
-  name  String     @unique
-  users UserRole[]
+  id             String           @id @default(uuid())
+  name           String           @unique
+  users          UserRole[]
+  RolePermission RolePermission[]
 }
 
 model UserRole {
@@ -50,6 +51,21 @@ model UserRole {
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+}
+
+model Permission {
+  id    String           @id @default(uuid())
+  name  String           @unique
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
 }
 
 model RefreshToken {
