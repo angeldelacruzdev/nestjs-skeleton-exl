@@ -1,10 +1,13 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Request } from 'express';
 import { Public } from '../decorators/public.decorator';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LoginUserDto } from './dto/login-user.dto';
+import { GetUserId } from 'src/decorators/get-user-id.decorator';
+import { RtGuard } from '../guards/rt-guards';
+import { GetRefreshToken } from '../decorators/get-refresh-token.decorator';
 
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -33,16 +36,26 @@ export class AuthController {
         return this.authService.register(email, password);
     }
 
+    @ApiOperation({ summary: 'Refrescar token' })
     @Post('refresh')
-    async refresh(@Body() { refreshToken }: { refreshToken: string }) {
-
-        return this.authService.refreshAccessToken(refreshToken);
+    @UseGuards(RtGuard)
+    async refresh(@GetRefreshToken() token: string, @GetUserId() userId: string,) {
+        const response = this.authService.refreshAccessToken(token, userId)
+        console.log(response)
+        return await this.authService.refreshAccessToken(token, userId);
     }
 
+    @ApiOperation({ summary: 'Cerrar sesión' })
     @Post('logout')
     async logout(@Body() { refreshToken }: { refreshToken: string }) {
         await this.authService.revokeRefreshToken(refreshToken);
         return { message: 'Sesión cerrada' };
+    }
+
+    @ApiOperation({ summary: 'Obtener mi información' })
+    @Get('me')
+    async me(@GetUserId() userId: string) {
+        return this.authService.getUserRolesAndPermissions(userId);
     }
 
 }

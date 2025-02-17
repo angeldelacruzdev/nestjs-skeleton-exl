@@ -66,8 +66,31 @@ export class AuthService {
                 data: { lockedUntil: null },
             });
 
-            const accessToken = this.jwtService.sign({ userId: user.id }, { expiresIn: '15m' });
-            const refreshToken = await this.generateRefreshToken(user.id);
+            const accessToken = this.jwtService.sign({ userId: user.id }, { secret: process.env.JWT_SECRET, expiresIn: '15m' });
+            const refreshToken = this.jwtService.sign({ userId: user?.id }, { secret: process.env.JWT_REFRESH_TOKEN_SECRET, expiresIn: '7d' });
+
+            const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
+
+            await this.prisma.user.update({
+                where: {
+                    id: user.id
+                },
+                data: {
+                    rtHash: refreshTokenHash
+                },
+
+            })
+
+
+            const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Expira en 7 días
+
+            await this.prisma.refreshToken.create({
+                data: {
+                    token: refreshTokenHash,
+                    userId: user.id,
+                    expiresAt
+                }
+            })
 
             await this.activityLogService.createLog(user.id, 'LOGIN', ipAddress, userAgent);
 
@@ -113,21 +136,48 @@ export class AuthService {
      * @returns The `refreshAccessToken` function is returning an object with a property `accessToken`
      * that contains the newly generated access token.
      */
-    async refreshAccessToken(refreshToken: string) {
+    async refreshAccessToken(refreshToken: string, userId: string) {
         try {
+
+            const findToken = await this.prisma.user.findFirst({
+                where: { id: userId }
+            });
+
+            if (!findToken?.rtHash) {
+                throw new UnauthorizedException();
+            }
+
+            const compareToken = await bcrypt.compare(refreshToken, `${findToken?.rtHash}`);
+
+            if (!compareToken) {
+                throw new UnauthorizedException();
+            }
+
+
             const storedToken = await this.prisma.refreshToken.findUnique({
-                where: { token: refreshToken },
+                where: { token: findToken?.rtHash },
             });
 
             if (!storedToken || storedToken.revoked || new Date() > storedToken.expiresAt) {
                 throw new UnauthorizedException('Refresh token inválido');
             }
 
-            const user = await this.prisma.user.findUnique({ where: { id: storedToken.userId } });
+            const accessToken = this.jwtService.sign({ userId: findToken.id }, { secret: process.env.JWT_SECRET, expiresIn: '15m' });
+            const newRefreshToken = this.jwtService.sign({ userId: findToken?.id }, { secret: process.env.JWT_REFRESH_TOKEN_SECRET, expiresIn: '7d' });
 
-            const newAccessToken = this.jwtService.sign({ userId: user?.id }, { expiresIn: '15m' });
 
-            return { accessToken: newAccessToken };
+            const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
+
+            await this.prisma.user.update({
+                where: {
+                    id: findToken?.id
+                },
+                data: {
+                    rtHash: refreshTokenHash
+                },
+
+            })
+            return { accessToken: accessToken, refreshToken: newRefreshToken };
         } catch (error) {
             console.log(error)
         }
@@ -166,8 +216,37 @@ export class AuthService {
                 data: { lockedUntil: new Date(Date.now() + this.LOCK_TIME) },
             });
 
-            this.activityLogService.createLog(userId, 'ACCOUNT_LOCKED', ipAddress, userAgent);
+            await this.activityLogService.createLog(userId, 'ACCOUNT_LOCKED', ipAddress, userAgent);
         }
     }
+
+    async getUserRolesAndPermissions(userId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                email: true,
+                lockedUntil: true,
+                roles: {
+                    include: {
+                        role: {
+                            include: {
+                                RolePermission: {
+                                    include: {
+                                        permission: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        });
+
+        return user
+    }
+
+
+
 
 }

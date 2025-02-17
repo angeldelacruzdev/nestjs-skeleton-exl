@@ -54,7 +54,7 @@ export class RolesService {
         // Verificar si el rol existe
         const role = await this.prisma.role.findUnique({ where: { id: roleId } });
 
-        console.log(role)
+
 
         if (!role) throw new NotFoundException('El rol no existe.');
 
@@ -70,8 +70,9 @@ export class RolesService {
         if (!existingRelation) throw new ConflictException('El permiso no está asignado al rol.');
 
         // Eliminar la relación
-        return this.prisma.rolePermission.delete({
+        const result = await this.prisma.rolePermission.delete({
             where: { roleId_permissionId: { roleId, permissionId } },
         });
+        return !!result
     }
 }

@@ -20,6 +20,7 @@ model User {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   lockedUntil DateTime? // Fecha hasta la que el usuario está bloqueado
+  rtHash      String?
   sessions    Session[]
   roles       UserRole[]
 

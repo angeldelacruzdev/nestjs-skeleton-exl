@@ -24,6 +24,7 @@ export class RolesController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Obtener los roles' })
   getRoles() {
     return this.rolesService.getRoles();
   }
@@ -35,8 +36,7 @@ export class RolesController {
   @ApiResponse({ status: 404, description: 'Rol o permiso no encontrado' })
   @ApiResponse({ status: 409, description: 'El permiso no está asignado al rol' })
   async removePermission(@Body() dto: RemovePermissionDto) {
-    console.log(dto)
-    return;
+ 
     return this.rolesService.removePermissionFromRole(dto);
   }
 
