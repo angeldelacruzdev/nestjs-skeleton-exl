@@ -14,11 +14,29 @@ export class PermissionsGuard implements CanActivate {
         const request = context.switchToHttp().getRequest();
 
         const user = request.user; // Obtenemos el usuario desde el token JWT
-        console.log(user)
-        // const userWithRoles = await this.prisma.user.findUnique({
-        //     where: { id: user.userId },
 
-        // });
+        const userWithRoles = await this.prisma.user.findUnique({
+            where: { id: user.userId },
+            include: {
+                roles: {
+                    include: {
+                        role: {
+                            include: {
+                                RolePermission: {
+                                    include: {
+                                        permission: { include: { roles: true } },
+
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        });
+
+        console.log(userWithRoles)
 
         // console.log(userWithRoles)
 

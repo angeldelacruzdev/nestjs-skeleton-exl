@@ -25,7 +25,7 @@ export class PermissionController {
     @Permissions('view-permissions')
     @ApiOperation({ summary: 'Obtener todos los permisos' })
     @ApiResponse({ status: 200, description: 'Lista de permisos' })
-    findAll() {
+    async findAll() {
         return this.permissionService.getAllPermissions();
     }
 }
